@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Inference Tuning Playground — Fine-Tuning-Like Behavior (Browser Only)</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#101a33;
+      --panel2:#0f1830;
+      --text:#e8eefc;
+      --muted:#a9b5d6;
+      --line:#23335f;
+      --accent:#6aa7ff;
+      --good:#36d39a;
+      --bad:#ff5e6b;
+      --warn:#ffcc66;
+      --chip:#1b2a55;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      background: radial-gradient(1200px 600px at 30% 0%, #16224a 0%, var(--bg) 60%), var(--bg);
+      color:var(--text);
+      line-height:1.35;
+    }
+    header{
+      padding: 26px 16px 6px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    h1{
+      margin:0 0 8px;
+      font-size: 22px;
+      letter-spacing:.2px;
+    }
+    .subtitle{
+      color: var(--muted);
+      font-size: 13px;
+      max-width: 900px;
+    }
+    main{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px 16px 28px;
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:14px;
+    }
+    @media (max-width: 980px){
+      main{grid-template-columns:1fr}
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background: rgba(0,0,0,.12);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .card .hd .title{
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing:.2px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .card .bd{
+      padding: 14px;
+    }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    @media (max-width: 700px){
+      .grid2{grid-template-columns:1fr}
+    }
+
+    label{
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 6px;
+    }
+    input[type="text"], input[type="password"], input[type="number"], select, textarea{
+      width:100%;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.22);
+      color: var(--text);
+      outline:none;
+    }
+    input[type="number"]{padding-right: 6px}
+    textarea{
+      min-height: 120px;
+      resize: vertical;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .btn{
+      cursor:pointer;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(106,167,255,.18);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-weight: 700;
+      transition: transform .05s ease, background .15s ease, opacity .15s ease;
+      user-select:none;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      justify-content:center;
+      min-height: 40px;
+    }
+    .btn:active{transform: translateY(1px)}
+    .btn.secondary{background: rgba(255,255,255,.08)}
+    .btn.danger{background: rgba(255,94,107,.18)}
+    .btn:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      transform:none;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .status{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot{
+      width:10px;height:10px;border-radius:999px;
+      background: rgba(255,255,255,.25);
+      box-shadow: 0 0 0 2px rgba(255,255,255,.06) inset;
+    }
+    .dot.good{background: var(--good)}
+    .dot.bad{background: var(--bad)}
+    .dot.warn{background: var(--warn)}
+    .pill{
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.07);
+      border:1px solid rgba(255,255,255,.08);
+      color: var(--muted);
+      display:inline-flex;
+      gap:6px;
+      align-items:center;
+    }
+    .pill strong{color: var(--text); font-weight:800}
+    .help{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    .hint{
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(0,0,0,.18);
+      border: 1px dashed rgba(255,255,255,.12);
+      padding: 10px 10px;
+      border-radius: 12px;
+    }
+
+    .control{
+      display:grid;
+      grid-template-columns: 1fr 90px;
+      gap:10px;
+      align-items:center;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.06);
+      background: rgba(0,0,0,.14);
+      margin-bottom: 10px;
+    }
+    .control .top{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      gap:8px;
+      margin-bottom: 8px;
+    }
+    .control .top .name{
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .control .top .range{
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+    .control input[type="range"]{
+      width:100%;
+      accent-color: var(--accent);
+    }
+
+    .radioGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    @media (max-width:700px){
+      .radioGrid{grid-template-columns:1fr}
+    }
+    .radioCard{
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.14);
+      border-radius: 14px;
+      padding: 10px 10px;
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      cursor:pointer;
+      user-select:none;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .radioCard:hover{background: rgba(255,255,255,.05)}
+    .radioCard input{margin-top: 3px}
+    .radioCard .rTitle{
+      font-weight: 900;
+      font-size: 13px;
+      margin:0 0 4px;
+    }
+    .radioCard .rDesc{
+      margin:0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .radioCard.active{
+      border-color: rgba(106,167,255,.55);
+      background: rgba(106,167,255,.10);
+    }
+
+    .output{
+      background: rgba(0,0,0,.28);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding: 12px;
+      min-height: 220px;
+      max-height: 420px;
+      overflow:auto;
+      white-space: pre-wrap;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .meta{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom: 10px;
+    }
+    .meta .pill{background: rgba(0,0,0,.22)}
+    .small{
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    footer{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 16px 40px;
+    }
+    .edu{
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .edu h2{
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+    .edu p, .edu li{
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .edu strong{color: var(--text)}
+    .edu .cols{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+      margin-top: 10px;
+    }
+    @media (max-width: 900px){
+      .edu .cols{grid-template-columns:1fr}
+    }
+    .edu .box{
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.16);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .kbd{
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+    }
+    .divider{
+      height:1px;
+      background: rgba(255,255,255,.08);
+      margin: 12px 0;
+    }
+    .toast{
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      max-width: 420px;
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.72);
+      box-shadow: var(--shadow);
+      color: var(--text);
+      font-size: 12px;
+      display:none;
+      z-index: 50;
+    }
+    .toast .tTitle{font-weight:900;margin:0 0 4px}
+    .toast .tBody{margin:0;color:var(--muted)}
+    .toast.good{border-color: rgba(54,211,154,.45)}
+    .toast.bad{border-color: rgba(255,94,107,.45)}
+    .toast.warn{border-color: rgba(255,204,102,.45)}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Inference Tuning Playground — “Fine-tuning-like” Behavior (Browser Only)</h1>
+    <div class="subtitle">
+      Learn how <strong>response behavior changes</strong> with: <span class="kbd">instructions</span>, <span class="kbd">temperature</span>, <span class="kbd">top-p</span>, <span class="kbd">top-k</span>.
+      This is not production software. It’s designed to help you build correct mental models without breaking when things fail.
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="hd">
+        <div class="title">🔐 API Key Setup</div>
+        <div class="status" id="keyStatus">
+          <span class="dot" id="keyDot"></span>
+          <span id="keyStatusText">Not validated</span>
+        </div>
+      </div>
+      <div class="bd">
+        <div class="grid2">
+          <div>
+            <label for="apiKey">API Key (Gemini-style)</label>
+            <input id="apiKey" type="password" placeholder="Paste your API key here (kept only in this page memory)"/>
+            <div class="help">
+              This file runs entirely in your browser. Your key is used only to make requests from your device to the provider.
+              Still: treat API keys like passwords.
+            </div>
+          </div>
+          <div>
+            <label for="provider">Provider (for learning)</label>
+            <select id="provider">
+              <option value="gemini" selected>Google Gemini (Generative Language API)</option>
+              <option value="generic">Generic (manual endpoint)</option>
+            </select>
+            <div class="help">
+              Default wiring uses Gemini endpoints. You can adapt the request function in the code if you use another provider.
+            </div>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="validateBtn">Validate API Key</button>
+          <button class="btn secondary" id="forgetBtn" title="Clears key and resets state">Forget Key / Reset</button>
+          <span class="pill" id="validationNote"><strong>Note:</strong> Listing models can succeed even when generation fails.</span>
+        </div>
+
+        <div class="hint" style="margin-top:12px" id="validationHelp">
+          <strong>Why validation can be “partially true”:</strong>
+          Some APIs let you list models with your key, but text generation can still fail due to quota, billing, permissions, or using the wrong model type.
+          This playground will show clear explanations and will fall back to safer models when possible.
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd">
+        <div class="title">🧠 Model Selection</div>
+        <span class="pill"><strong id="modelsCount">0</strong> models</span>
+      </div>
+      <div class="bd">
+        <label for="modelSelect">Available text / generative models</label>
+        <select id="modelSelect" disabled>
+          <option>Validate API key first…</option>
+        </select>
+        <div class="help">
+          Not all listed models can generate text in your account. If the selected model fails, this tool will automatically fall back to a safer default.
+        </div>
+        <div class="divider"></div>
+        <div class="meta">
+          <span class="pill">Selected: <strong id="selectedModelPill">—</strong></span>
+          <span class="pill">Actually used: <strong id="usedModelPill">—</strong></span>
+          <span class="pill">Fallback: <strong id="fallbackPill">—</strong></span>
+        </div>
+        <div class="small" id="modelExplain">
+          Validate your key to discover models. Then pick one. During generation, the app may use a different model if your choice fails.
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd">
+        <div class="title">🎭 Response Style</div>
+        <span class="pill">Presets auto-fill <strong>everything</strong></span>
+      </div>
+      <div class="bd">
+        <div class="radioGrid" id="presetGrid" aria-label="Response style presets"></div>
+        <div class="help" style="margin-top:8px">
+          Click a preset to instantly set: <strong>Temperature</strong>, <strong>Top-P</strong>, <strong>Top-K</strong>, and the <strong>System/Instruction prompt</strong>.
+          You can still edit anything afterwards — that’s the point.
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd">
+        <div class="title">🎛️ Model Controls (Inference Tuning)</div>
+        <span class="pill">Sliders ↔ numbers synced</span>
+      </div>
+      <div class="bd">
+        <div class="control">
+          <div>
+            <div class="top">
+              <div class="name">Temperature</div>
+              <div class="range">0.0 – 1.5</div>
+            </div>
+            <input id="tempRange" type="range" min="0" max="1.5" step="0.01" value="0.7"/>
+            <div class="help">Higher = more variety/creativity. Lower = more consistent and conservative.</div>
+          </div>
+          <div>
+            <label for="tempNum">Value</label>
+            <input id="tempNum" type="number" min="0" max="1.5" step="0.01" value="0.7"/>
+          </div>
+        </div>
+
+        <div class="control">
+          <div>
+            <div class="top">
+              <div class="name">Top-P (nucleus sampling)</div>
+              <div class="range">0.0 – 1.0</div>
+            </div>
+            <input id="topPRange" type="range" min="0" max="1" step="0.01" value="0.9"/>
+            <div class="help">Chooses from the smallest set of words whose total probability adds up to <em>P</em>. Lower = safer/more focused.</div>
+          </div>
+          <div>
+            <label for="topPNum">Value</label>
+            <input id="topPNum" type="number" min="0" max="1" step="0.01" value="0.9"/>
+          </div>
+        </div>
+
+        <div class="control">
+          <div>
+            <div class="top">
+              <div class="name">Top-K</div>
+              <div class="range">1 – 100</div>
+            </div>
+            <input id="topKRange" type="range" min="1" max="100" step="1" value="40"/>
+            <div class="help">Limits choices to the <em>K</em> most likely next words. Lower K = more predictable; higher K = more variety.</div>
+          </div>
+          <div>
+            <label for="topKNum">Value</label>
+            <input id="topKNum" type="number" min="1" max="100" step="1" value="40"/>
+          </div>
+        </div>
+
+        <div class="control" style="margin-bottom:0">
+          <div>
+            <div class="top">
+              <div class="name">Max Output Tokens</div>
+              <div class="range">50 – 2048</div>
+            </div>
+            <input id="maxTokRange" type="range" min="50" max="2048" step="1" value="512"/>
+            <div class="help">Caps how long the answer can be. Lower = shorter answers; higher = longer answers (may cost more and take longer).</div>
+          </div>
+          <div>
+            <label for="maxTokNum">Value</label>
+            <input id="maxTokNum" type="number" min="50" max="2048" step="1" value="512"/>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd">
+        <div class="title">🧠 Instruction &amp; Prompt</div>
+        <span class="pill">System + User sent explicitly</span>
+      </div>
+      <div class="bd">
+        <label for="systemPrompt">System / Instruction Prompt (behavior steering)</label>
+        <textarea id="systemPrompt" spellcheck="false"></textarea>
+        <div class="help">
+          Think of this as the “role + rules” for the model. It often changes behavior more than any slider.
+        </div>
+
+        <div style="height:10px"></div>
+
+        <label for="userPrompt">User Prompt (the actual question)</label>
+        <textarea id="userPrompt" spellcheck="false" placeholder="Try: Explain what fine-tuning is, but answer like a pirate. Then switch presets and observe what changes."></textarea>
+        <div class="help">
+          If you leave this empty, the app won’t crash — it will ask you to add a prompt.
+        </div>
+
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="runBtn" disabled>Run Prompt</button>
+          <button class="btn secondary" id="demoBtn" title="Loads a sample prompt">Load Demo Prompt</button>
+          <button class="btn secondary" id="clearOutBtn" title="Clears output">Clear Output</button>
+          <span class="pill">Tip: try the same prompt with different presets</span>
+        </div>
+
+        <div class="hint" style="margin-top:12px">
+          <strong>Mental model:</strong> Presets imitate “fine-tuned style” by combining (1) a strong instruction prompt and (2) inference settings.
+          But the model’s <em>weights</em> do not change — so it’s not real fine-tuning.
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd">
+        <div class="title">📤 Model Output</div>
+        <span class="pill">Never shows raw stack traces</span>
+      </div>
+      <div class="bd">
+        <div class="meta">
+          <span class="pill">Latency: <strong id="latencyPill">—</strong></span>
+          <span class="pill">Used model: <strong id="usedModelPill2">—</strong></span>
+        </div>
+        <div class="output" id="outputArea">Output will appear here…</div>
+        <div class="help" style="margin-top:10px" id="errorHelp">
+          If something fails, you’ll get a human-readable explanation and next steps (check quota, try another model, etc.).
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="edu">
+      <h2>📘 Understanding Fine-Tuning (Simple Explanation)</h2>
+
+      <p>
+        This playground makes LLMs look like they have “different personalities.” That can feel like fine-tuning —
+        but most of what you’re seeing is <strong>instructions + inference tuning</strong>.
+      </p>
+
+      <div class="cols">
+        <div class="box">
+          <p><strong>What is Temperature?</strong></p>
+          <p>
+            Imagine the model has a “menu” of possible next words. Temperature controls how boldly it explores the menu.
+            <br><br>
+            <strong>Low temperature</strong> is like ordering the same safe meal every time.
+            <br>
+            <strong>High temperature</strong> is like trying weird new combinations — sometimes brilliant, sometimes messy.
+          </p>
+
+          <div class="divider"></div>
+
+          <p><strong>What are Top-P and Top-K?</strong></p>
+          <p>
+            These decide <em>how many choices</em> the model is allowed to consider for the next word.
+          </p>
+          <ul>
+            <li><strong>Top-K</strong>: “Only consider the K most likely words.”</li>
+            <li><strong>Top-P</strong>: “Consider the smallest set of words whose probabilities add up to P.”</li>
+          </ul>
+          <p>
+            Lower values usually mean safer and more focused answers. Higher values allow more variety.
+          </p>
+        </div>
+
+        <div class="box">
+          <p><strong>Why this is NOT real fine-tuning</strong></p>
+          <p>
+            Real fine-tuning means the model’s internal parameters (its “weights”) are updated using training data.
+            That creates a new version of the model that behaves differently even with the same prompt.
+          </p>
+
+          <div class="divider"></div>
+
+          <p><strong>Prompt engineering vs Inference tuning vs Fine-tuning</strong></p>
+          <ul>
+            <li>
+              <strong>Prompt engineering</strong>: You write better instructions/questions to get better output.
+              (You’re “asking” more effectively.)
+            </li>
+            <li>
+              <strong>Inference tuning</strong>: You keep the model fixed, but change how it samples outputs
+              (temperature/top-p/top-k/max tokens). (You’re “turning knobs.”)
+            </li>
+            <li>
+              <strong>Fine-tuning</strong>: You train the model on examples so it learns a pattern consistently.
+              (You’re “teaching” it with data so the model itself changes.)
+            </li>
+          </ul>
+
+          <div class="divider"></div>
+
+          <p><strong>What are API keys? Why protect them?</strong></p>
+          <p>
+            An API key is like a password that lets your device use a paid or rate-limited service.
+            If someone steals it, they can spend your quota or money. Don’t paste keys into untrusted websites.
+            This file runs locally, but you should still be careful.
+          </p>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="small">
+        Engineering note: This tool uses safe defaults and fallback logic. If the selected model fails, it will try a known text-generative model
+        and explain what happened without breaking the UI.
+      </p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <p class="tTitle" id="toastTitle">Notice</p>
+    <p class="tBody" id="toastBody">…</p>
+  </div>
+
+  <script>
+    (function(){
+      "use strict";
+
+      const state = {
+        keyValidated: false,
+        apiKey: "",
+        provider: "gemini",
+        models: [],
+        selectedModel: "",
+        lastUsedModel: "",
+        lastFallback: "",
+        lastLatencyMs: null,
+        presetId: "innovative",
+        userEditedInstructions: false,
+      };
+
+      const $ = (id)=>document.getElementById(id);
+
+      const apiKeyEl = $("apiKey");
+      const providerEl = $("provider");
+      const validateBtn = $("validateBtn");
+      const forgetBtn = $("forgetBtn");
+
+      const keyDot = $("keyDot");
+      const keyStatusText = $("keyStatusText");
+
+      const modelSelect = $("modelSelect");
+      const modelsCount = $("modelsCount");
+      const usedModelPill = $("usedModelPill");
+      const usedModelPill2 = $("usedModelPill2");
+      const fallbackPill = $("fallbackPill");
+      const modelExplain = $("modelExplain");
+
+      const presetGrid = $("presetGrid");
+
+      const tempRange = $("tempRange");
+      const tempNum = $("tempNum");
+      const topPRange = $("topPRange");
+      const topPNum = $("topPNum");
+      const topKRange = $("topKRange");
+      const topKNum = $("topKNum");
+      const maxTokRange = $("maxTokRange");
+      const maxTokNum = $("maxTokNum");
+
+      const systemPrompt = $("systemPrompt");
+      const userPrompt = $("userPrompt");
+      const runBtn = $("runBtn");
+      const demoBtn = $("demoBtn");
+      const clearOutBtn = $("clearOutBtn");
+
+      const outputArea = $("outputArea");
+      const latencyPill = $("latencyPill");
+
+      const toast = $("toast");
+      const toastTitle = $("toastTitle");
+      const toastBody = $("toastBody");
+
+      const PRESETS = [
+        {
+          id: "innovative",
+          name: "Innovative Thinker",
+          desc: "Explores ideas, offers options, tolerates ambiguity.",
+          temperature: 1.1,
+          topP: 0.95,
+          topK: 60,
+          system: [
+            "You are an innovative, constructive thinker.",
+            "Goal: generate multiple interesting angles and novel possibilities, but keep it understandable.",
+            "Be bold, but do not invent facts. If you’re unsure, say so and offer ways to verify.",
+            "Prefer structured answers (bullets, steps).",
+            "If the user asks for a plan, provide a simple plan and a more ambitious plan."
+          ].join("\n")
+        },
+        {
+          id: "factual",
+          name: "Factual & Precise",
+          desc: "High accuracy, cautious claims, clear structure.",
+          temperature: 0.2,
+          topP: 0.7,
+          topK: 20,
+          system: [
+            "You are a careful, factual assistant.",
+            "Prioritize correctness over creativity.",
+            "If a detail is unknown, explicitly say it is unknown instead of guessing.",
+            "Use concise, structured reasoning. Avoid fluff and jokes.",
+            "When relevant, list assumptions and limitations."
+          ].join("\n")
+        },
+        {
+          id: "funnyKid",
+          name: "Funny Kid (8–10 years old)",
+          desc: "Kid-friendly, playful, simple words, but still accurate.",
+          temperature: 1.0,
+          topP: 0.95,
+          topK: 80,
+          system: [
+            "You are a funny kid (about 9 years old) who explains things clearly.",
+            "Use simple words and short sentences.",
+            "Add light humor (silly examples), but never be mean.",
+            "Even though you’re playful, do not make up facts. If you don’t know, say 'I’m not sure.'",
+            "Use analogies (like LEGO, snacks, school) to explain."
+          ].join("\n")
+        },
+        {
+          id: "pm",
+          name: "Informed Product Manager",
+          desc: "Focuses on user needs, tradeoffs, requirements, next steps.",
+          temperature: 0.5,
+          topP: 0.85,
+          topK: 40,
+          system: [
+            "You are an informed product manager.",
+            "Clarify goals, users, constraints, and success metrics.",
+            "Explain tradeoffs and risks; propose a pragmatic next step.",
+            "Prefer crisp bullet points, decision frameworks, and an action plan.",
+            "Be candid and practical. Avoid vague motivation."
+          ].join("\n")
+        },
+        {
+          id: "noNonsense",
+          name: "No-Nonsense Fact Teller",
+          desc: "Direct, blunt (not rude), focuses on what matters.",
+          temperature: 0.25,
+          topP: 0.75,
+          topK: 25,
+          system: [
+            "You are a no-nonsense fact teller.",
+            "Be direct and efficient. No filler. No pep talk.",
+            "Focus on actionable truth and likely outcomes.",
+            "If the user request is unrealistic, say so and explain why.",
+            "If the user needs steps, give steps."
+          ].join("\n")
+        },
+        {
+          id: "custom",
+          name: "Custom",
+          desc: "You control everything manually.",
+          temperature: 0.7,
+          topP: 0.9,
+          topK: 40,
+          system: [
+            "You are a helpful assistant.",
+            "Follow the user's instructions.",
+            "Be clear, safe, and accurate."
+          ].join("\n")
+        }
+      ];
+
+      function getPreset(id){
+        return PRESETS.find(p=>p.id===id) || PRESETS[0];
+      }
+
+      function setKeyStatus(kind, text){
+        keyDot.classList.remove("good","bad","warn");
+        if(kind==="good") keyDot.classList.add("good");
+        else if(kind==="bad") keyDot.classList.add("bad");
+        else if(kind==="warn") keyDot.classList.add("warn");
+        keyStatusText.textContent = text;
+      }
+
+      function showToast(kind, title, body){
+        try{
+          toast.classList.remove("good","bad","warn");
+          if(kind==="good") toast.classList.add("good");
+          if(kind==="bad") toast.classList.add("bad");
+          if(kind==="warn") toast.classList.add("warn");
+          toastTitle.textContent = title || "Notice";
+          toastBody.textContent = body || "";
+          toast.style.display = "block";
+          clearTimeout(showToast._t);
+          showToast._t = setTimeout(()=>{ toast.style.display="none"; }, 3800);
+        }catch(e){}
+      }
+
+      function safeSetText(el, text){
+        try{ el.textContent = String(text); }catch(e){}
+      }
+
+      function disableRun(disabled, reason){
+        runBtn.disabled = !!disabled;
+        runBtn.title = disabled ? (reason || "") : "";
+      }
+
+      function setOutput(text){
+        try{ outputArea.textContent = text; }catch(e){}
+      }
+
+      function appendOutput(text){
+        try{
+          outputArea.textContent = (outputArea.textContent || "") + text;
+          outputArea.scrollTop = outputArea.scrollHeight;
+        }catch(e){}
+      }
+
+      function setMeta({latencyMs, usedModel, fallback}){
+        const lat = (typeof latencyMs === "number") ? (latencyMs.toFixed(0) + " ms") : "—";
+        safeSetText(latencyPill, lat);
+        safeSetText(usedModelPill, usedModel || "—");
+        safeSetText(usedModelPill2, usedModel || "—");
+        safeSetText(fallbackPill, fallback || "—");
+      }
+
+      function setSelectedModelUI(){
+        safeSetText($("selectedModelPill"), state.selectedModel || "—");
+      }
+
+      function syncPair(rangeEl, numEl, clampMin, clampMax, step){
+        const clamp = (x)=>{
+          let v = Number(x);
+          if(!isFinite(v)) v = Number(rangeEl.value) || clampMin;
+          if(v < clampMin) v = clampMin;
+          if(v > clampMax) v = clampMax;
+          if(step){
+            const inv = 1/step;
+            v = Math.round(v*inv)/inv;
+          }
+          return v;
+        };
+        const fromRange = ()=>{
+          const v = clamp(rangeEl.value);
+          rangeEl.value = v;
+          numEl.value = v;
+        };
+        const fromNum = ()=>{
+          const v = clamp(numEl.value);
+          rangeEl.value = v;
+          numEl.value = v;
+        };
+        rangeEl.addEventListener("input", fromRange);
+        numEl.addEventListener("input", fromNum);
+        fromRange();
+      }
+
+      async function fetchJson(url, options){
+        const resInfo = { ok:false, status: 0, statusText: "", json: null, text: "" };
+        try{
+          const res = await fetch(url, options || {});
+          resInfo.status = res.status;
+          resInfo.statusText = res.statusText || "";
+          resInfo.ok = !!res.ok;
+          const contentType = (res.headers.get("content-type") || "").toLowerCase();
+          if(contentType.includes("application/json")){
+            resInfo.json = await res.json().catch(()=>null);
+          } else {
+            resInfo.text = await res.text().catch(()=> "");
+            if(resInfo.text && resInfo.text.trim().startsWith("{")){
+              try{ resInfo.json = JSON.parse(resInfo.text); }catch(e){}
+            }
+          }
+          return resInfo;
+        }catch(e){
+          resInfo.ok = false;
+          resInfo.status = 0;
+          resInfo.statusText = "Network error";
+          resInfo.text = String(e && e.message ? e.message : e);
+          return resInfo;
+        }
+      }
+
+      function humanizeApiError(resInfo){
+        try{
+          const status = resInfo.status;
+          const j = resInfo.json;
+          const t = resInfo.text || "";
+          const msg = (j && j.error && j.error.message) ? String(j.error.message) : "";
+          const st = (j && j.error && j.error.status) ? String(j.error.status) : "";
+
+          if(status === 0) return "Network error: your browser could not reach the API. Check internet/VPN, or browser privacy settings.";
+          if(status === 401 || st === "UNAUTHENTICATED") return "Authentication failed: the API key looks invalid, missing, or not allowed for this endpoint.";
+          if(status === 403 || st === "PERMISSION_DENIED") return "Permission denied: your key may be valid but doesn’t have access to this model or endpoint (restricted model, billing, or permissions).";
+          if(status === 429 || st === "RESOURCE_EXHAUSTED") return "Quota exceeded (rate limit or usage limit): you might have hit your request limit. Try later or check quota/billing.";
+          if(status >= 500) return "Server error from the provider: try again in a moment. If it keeps happening, switch models.";
+          if(msg) return "API error: " + (msg.length > 260 ? (msg.slice(0,260) + "…") : msg);
+          if(t) return "API returned an error response: " + (t.length > 240 ? (t.slice(0,240) + "…") : t);
+          return "Unknown error: the request failed. Try another model or check your key/quota.";
+        }catch(e){
+          return "Unknown error: the request failed. Try another model or check your key/quota.";
+        }
+      }
+
+      const SAFE_FALLBACK_MODELS = [
+        "models/gemini-1.5-flash",
+        "models/gemini-1.5-pro",
+        "models/gemini-1.0-pro",
+        "models/text-bison-001"
+      ];
+
+      function looksTextGenerative(modelObj){
+        try{
+          const name = String(modelObj.name || "");
+          const display = String(modelObj.displayName || "");
+          const desc = String(modelObj.description || "");
+          const supported = modelObj.supportedGenerationMethods || modelObj.supportedMethods || [];
+          const methods = Array.isArray(supported) ? supported.map(String) : [];
+          const methodStr = methods.join(" ").toLowerCase();
+
+          const byMethod = methodStr.includes("generatecontent") || methodStr.includes("generate") || methodStr.includes("text");
+          const byName = /gemini|text|bison|chat|pro|flash/i.test(name + " " + display);
+          const notVisionOnly = !/vision|image|embedding/i.test(name + " " + display + " " + desc);
+          return (byMethod || byName) && notVisionOnly;
+        }catch(e){
+          return false;
+        }
+      }
+
+      function setModelsUI(models){
+        try{
+          state.models = models || [];
+          safeSetText(modelsCount, String(state.models.length));
+          modelSelect.innerHTML = "";
+
+          if(!state.keyValidated){
+            modelSelect.disabled = true;
+            const opt = document.createElement("option");
+            opt.textContent = "Validate API key first…";
+            modelSelect.appendChild(opt);
+            return;
+          }
+
+          if(state.models.length === 0){
+            modelSelect.disabled = false;
+            const opt = document.createElement("option");
+            opt.textContent = "No models found (try validating again)";
+            opt.value = "";
+            modelSelect.appendChild(opt);
+            state.selectedModel = "";
+            setSelectedModelUI();
+            return;
+          }
+
+          modelSelect.disabled = false;
+          const frag = document.createDocumentFragment();
+          state.models.forEach(m=>{
+            const opt = document.createElement("option");
+            opt.value = m.name;
+            opt.textContent = (m.displayName ? (m.displayName + " — " + m.name) : m.name);
+            frag.appendChild(opt);
+          });
+          modelSelect.appendChild(frag);
+
+          state.selectedModel = state.models[0].name;
+          modelSelect.value = state.selectedModel;
+          setSelectedModelUI();
+        }catch(e){
+          modelSelect.disabled = true;
+          modelSelect.innerHTML = "<option>Model list failed to render</option>";
+        }
+      }
+
+      async function validateKeyAndLoadModels(){
+        const key = (apiKeyEl.value || "").trim();
+        state.apiKey = key;
+        state.provider = providerEl.value || "gemini";
+
+        disableRun(true, "Validate your key first.");
+
+        if(!key){
+          state.keyValidated = false;
+          setKeyStatus("bad", "Missing API key");
+          setModelsUI([]);
+          setMeta({latencyMs:null, usedModel:"—", fallback:"—"});
+          safeSetText(modelExplain, "Add an API key, then validate it.");
+          showToast("bad", "Missing key", "Paste an API key, then click Validate.");
+          return;
+        }
+
+        if(state.provider !== "gemini"){
+          state.keyValidated = true;
+          setKeyStatus("warn", "Generic mode (no validation)");
+          setModelsUI([]);
+          safeSetText(modelExplain, "Generic mode: validation and model discovery are not implemented. Switch provider to Gemini for built-in wiring.");
+          showToast("warn", "Generic mode", "Switch provider to Gemini for automatic model discovery + validation.");
+          return;
+        }
+
+        setKeyStatus("warn", "Validating…");
+        safeSetText(modelExplain, "Validating key by listing models…");
+
+        const url = "https://generativelanguage.googleapis.com/v1beta/models?key=" + encodeURIComponent(key);
+        const resInfo = await fetchJson(url, { method: "GET" });
+
+        if(!resInfo.ok){
+          state.keyValidated = false;
+          setKeyStatus("bad", "Validation failed");
+          setModelsUI([]);
+          setMeta({latencyMs:null, usedModel:"—", fallback:"—"});
+          const msg = humanizeApiError(resInfo);
+          setOutput("API Key Validation failed.\n\n" + msg + "\n\nWhat to try next:\n- Confirm the key is correct (no extra spaces).\n- Check that the Generative Language API is enabled for your project/key.\n- Check your network/VPN.\n");
+          safeSetText(modelExplain, "Validation failed. You can’t run prompts until the key is validated.");
+          showToast("bad", "Key invalid", msg);
+          return;
+        }
+
+        const rawModels = (resInfo.json && Array.isArray(resInfo.json.models)) ? resInfo.json.models : [];
+        const filtered = rawModels.filter(looksTextGenerative);
+        const modelsToUse = filtered.length ? filtered : rawModels;
+
+        state.keyValidated = true;
+        setKeyStatus(filtered.length ? "good" : "warn", filtered.length ? "API Key Valid" : "API Key Valid (model filter uncertain)");
+        setModelsUI(modelsToUse);
+        setMeta({latencyMs:null, usedModel:"—", fallback:"—"});
+
+        safeSetText(modelExplain,
+          filtered.length
+            ? "Models loaded. Some models may still fail during generation due to quota/permissions. Fallback is enabled."
+            : "Models loaded, but filtering couldn’t confidently identify text-only models. If generation fails, try another model. Fallback is enabled."
+        );
+
+        disableRun(false, "");
+        showToast("good", "API key validated", "Models loaded. Pick a model and run a prompt.");
+      }
+
+      function buildGeminiPayload(systemText, userText){
+        const temp = Number(tempRange.value);
+        const topP = Number(topPRange.value);
+        const topK = Number(topKRange.value);
+        const maxTok = Number(maxTokRange.value);
+
+        return {
+          systemInstruction: systemText ? { parts: [{ text: systemText }] } : undefined,
+          contents: [{ role: "user", parts: [{ text: userText || "" }] }],
+          generationConfig: {
+            temperature: isFinite(temp) ? temp : 0.7,
+            topP: isFinite(topP) ? topP : 0.9,
+            topK: isFinite(topK) ? Math.max(1, Math.floor(topK)) : 40,
+            maxOutputTokens: isFinite(maxTok) ? Math.max(1, Math.floor(maxTok)) : 512
+          }
+        };
+      }
+
+      function extractGeminiText(resJson){
+        try{
+          const cands = resJson && Array.isArray(resJson.candidates) ? resJson.candidates : [];
+          if(!cands.length) return "";
+          const content = cands[0].content || {};
+          const parts = Array.isArray(content.parts) ? content.parts : [];
+          const texts = parts.map(p=>p && p.text ? String(p.text) : "").filter(Boolean);
+          return texts.join("");
+        }catch(e){
+          return "";
+        }
+      }
+
+      async function geminiGenerate(modelName, systemText, userText){
+        const key = state.apiKey;
+        const url = "https://generativelanguage.googleapis.com/v1beta/" + encodeURIComponent(modelName) + ":generateContent?key=" + encodeURIComponent(key);
+
+        const payload1 = buildGeminiPayload(systemText, userText);
+        if(!payload1.systemInstruction) delete payload1.systemInstruction;
+
+        const res1 = await fetchJson(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload1)
+        });
+
+        if(res1.ok){
+          return { ok:true, text: extractGeminiText(res1.json || {}), resInfo: res1, usedShape: "systemInstruction + contents" };
+        }
+
+        const payload2 = {
+          contents: [
+            { role: "user", parts: [{ text: (systemText ? ("INSTRUCTIONS:\n" + systemText + "\n\n") : "") + (userText || "") }] }
+          ],
+          generationConfig: payload1.generationConfig
+        };
+
+        const res2 = await fetchJson(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload2)
+        });
+
+        if(res2.ok){
+          return { ok:true, text: extractGeminiText(res2.json || {}), resInfo: res2, usedShape: "instructions-in-user" };
+        }
+
+        return { ok:false, text:"", resInfo: res2, usedShape: "failed" };
+      }
+
+      function chooseFallbackModels(){
+        const discoveredNames = state.models.map(m=>m.name);
+        const present = SAFE_FALLBACK_MODELS.filter(m=>discoveredNames.includes(m));
+        return present.length ? present : SAFE_FALLBACK_MODELS.slice();
+      }
+
+      async function runWithFallback(systemText, userText){
+        const requested = state.selectedModel || modelSelect.value || "";
+        const candidates = [];
+        if(requested) candidates.push(requested);
+        chooseFallbackModels().forEach(m=>{
+          if(!candidates.includes(m)) candidates.push(m);
+        });
+
+        let lastErr = null;
+        for(let i=0;i<candidates.length;i++){
+          const m = candidates[i];
+          safeSetText(usedModelPill, m);
+          safeSetText(usedModelPill2, m);
+          const r = await geminiGenerate(m, systemText, userText);
+          if(r.ok && r.text){
+            const fallbackNote = (i===0) ? "none" : "yes (used fallback model)";
+            return { ok:true, modelUsed: m, fallback: fallbackNote, text: r.text, shape: r.usedShape };
+          }
+          lastErr = r.resInfo;
+        }
+        return { ok:false, modelUsed: candidates[0] || "—", fallback: "attempted", text: "", err: lastErr };
+      }
+
+      function buildPresetUI(){
+        presetGrid.innerHTML = "";
+        const frag = document.createDocumentFragment();
+
+        PRESETS.forEach(p=>{
+          const card = document.createElement("div");
+          card.className = "radioCard";
+          card.setAttribute("data-preset", p.id);
+
+          const radio = document.createElement("input");
+          radio.type = "radio";
+          radio.name = "preset";
+          radio.value = p.id;
+
+          const box = document.createElement("div");
+          const title = document.createElement("p");
+          title.className = "rTitle";
+          title.textContent = p.name;
+          const desc = document.createElement("p");
+          desc.className = "rDesc";
+          desc.textContent = p.desc;
+
+          box.appendChild(title);
+          box.appendChild(desc);
+
+          card.appendChild(radio);
+          card.appendChild(box);
+
+          const activate = ()=>applyPreset(p.id, true);
+          card.addEventListener("click", (e)=>{ e.preventDefault(); activate(); });
+          radio.addEventListener("change", activate);
+
+          frag.appendChild(card);
+        });
+
+        presetGrid.appendChild(frag);
+        refreshPresetActiveUI();
+      }
+
+      function refreshPresetActiveUI(){
+        presetGrid.querySelectorAll(".radioCard").forEach(c=>{
+          const id = c.getAttribute("data-preset");
+          const radio = c.querySelector("input[type=radio]");
+          const active = (id === state.presetId);
+          c.classList.toggle("active", active);
+          if(radio) radio.checked = active;
+        });
+      }
+
+      function setControlValues({temperature, topP, topK}){
+        if(typeof temperature === "number"){ tempRange.value = temperature; tempNum.value = temperature; tempRange.dispatchEvent(new Event("input")); }
+        if(typeof topP === "number"){ topPRange.value = topP; topPNum.value = topP; topPRange.dispatchEvent(new Event("input")); }
+        if(typeof topK === "number"){ topKRange.value = topK; topKNum.value = topK; topKRange.dispatchEvent(new Event("input")); }
+      }
+
+      function applyPreset(presetId, userInitiated){
+        const p = getPreset(presetId);
+        state.presetId = p.id;
+        setControlValues({temperature:p.temperature, topP:p.topP, topK:p.topK});
+
+        if(!state.userEditedInstructions || p.id === "custom"){
+          systemPrompt.value = p.system;
+        } else if(userInitiated){
+          showToast("warn", "Instructions not overwritten", "You edited the instruction prompt manually, so preset changes won’t overwrite it.");
+        }
+        refreshPresetActiveUI();
+      }
+
+      function resetAll(){
+        apiKeyEl.value = "";
+        state.apiKey = "";
+        state.keyValidated = false;
+        state.models = [];
+        state.selectedModel = "";
+        modelSelect.disabled = true;
+        modelSelect.innerHTML = "<option>Validate API key first…</option>";
+        safeSetText(modelsCount, "0");
+        setKeyStatus("warn", "Not validated");
+        disableRun(true, "Validate your key first.");
+        setMeta({latencyMs:null, usedModel:"—", fallback:"—"});
+        safeSetText(modelExplain, "Add an API key, then validate it.");
+        state.userEditedInstructions = false;
+        applyPreset("innovative", false);
+        setOutput("Output will appear here…");
+      }
+
+      async function onRun(){
+        try{
+          if(!state.keyValidated){
+            showToast("bad", "Key not validated", "Validate your API key first.");
+            disableRun(true, "Validate your key first.");
+            return;
+          }
+          if(state.provider !== "gemini"){
+            setOutput("Generic provider mode is not implemented for generation in this file.\n\nSwitch Provider to 'Google Gemini' to use built-in API calls.");
+            showToast("warn", "Generic mode", "Switch provider to Gemini to run prompts.");
+            return;
+          }
+
+          const sys = (systemPrompt.value || "").trim();
+          const user = (userPrompt.value || "").trim();
+
+          if(!user){
+            setOutput("Your User Prompt is empty.\n\nWhat to do:\n- Type a question or task into the User Prompt box.\n- Then click 'Run Prompt'.\n");
+            showToast("warn", "Empty prompt", "Add a user prompt first.");
+            return;
+          }
+
+          disableRun(true, "Running…");
+          setOutput("Running…\n");
+          setMeta({latencyMs:null, usedModel:"—", fallback:"—"});
+          safeSetText(modelExplain, "Generating text… If your chosen model fails, the app will automatically try safe fallback models.");
+
+          const t0 = performance.now();
+          const result = await runWithFallback(sys, user);
+          const t1 = performance.now();
+          const latency = t1 - t0;
+
+          if(result.ok){
+            setMeta({latencyMs: latency, usedModel: result.modelUsed, fallback: result.fallback});
+            const header = ["✅ Success","Model used: " + result.modelUsed,"Fallback: " + result.fallback,"Sampling shape: " + result.shape,""].join("\n");
+            setOutput(header + result.text);
+
+            if(result.fallback !== "none"){
+              safeSetText(modelExplain, "Your selected model failed, so the app used a fallback model. Typical causes: permissions, quota, or model type mismatch.");
+              showToast("warn", "Fallback used", "Your selected model failed; a safer model was used.");
+            } else {
+              safeSetText(modelExplain, "Generation succeeded with your selected model. Now change presets and knobs to observe behavior shifts.");
+              showToast("good", "Done", "Response generated.");
+            }
+          } else {
+            const msg = humanizeApiError(result.err || {status:0});
+            setMeta({latencyMs: latency, usedModel: result.modelUsed, fallback: "attempted"});
+            setOutput(
+              "❌ Generation failed\n\n" + msg +
+              "\n\nWhat likely happened:\n- The model might not support text generation for your account.\n- Quota or rate limits could be exhausted.\n- Billing/permissions may block generation even if model listing works.\n\nWhat to try next:\n- Pick a different model in 'Model Selection'.\n- Try again later (rate limits).\n- Check provider quota/billing/permissions.\n- Reduce Max Output Tokens.\n"
+            );
+            safeSetText(modelExplain, "Generation failed. Try a different model or check quota/permissions. The UI remains usable.");
+            showToast("bad", "Generation failed", msg);
+          }
+        }catch(e){
+          setOutput("Unexpected error inside the app (but the UI survived).\n\nWhat to try:\n- Reload the page and validate again.\n- Check your network.\n\nDetails (simplified): " + String(e && e.message ? e.message : e));
+          showToast("bad", "Unexpected error", "Reload and try again.");
+        }finally{
+          disableRun(!state.keyValidated, state.keyValidated ? "" : "Validate your key first.");
+        }
+      }
+
+      function loadDemo(){
+        userPrompt.value = [
+          "Teach me the difference between:",
+          "1) prompt engineering,",
+          "2) inference tuning (temperature/top-p/top-k),",
+          "3) real fine-tuning.",
+          "",
+          "Use this format:",
+          "- A simple analogy",
+          "- A short example prompt",
+          "- A quick 'what changed / what did not change' checklist",
+          "",
+          "Keep it under 200 words."
+        ].join("\n");
+        showToast("good", "Demo loaded", "Switch presets and run again to compare behavior.");
+      }
+
+      function wireEvents(){
+        validateBtn.addEventListener("click", ()=>{
+          validateKeyAndLoadModels().catch(e=>{
+            setKeyStatus("bad","Validation failed");
+            setOutput("Validation crashed unexpectedly (UI survived).\n\nDetails: " + String(e && e.message ? e.message : e));
+            showToast("bad", "Validation error", "Check network/key and try again.");
+          });
+        });
+
+        forgetBtn.addEventListener("click", ()=>{
+          resetAll();
+          showToast("good", "Reset", "Cleared key and reset the UI.");
+        });
+
+        modelSelect.addEventListener("change", ()=>{
+          state.selectedModel = modelSelect.value || "";
+          setSelectedModelUI();
+        });
+
+        systemPrompt.addEventListener("input", ()=>{
+          state.userEditedInstructions = true;
+        });
+
+        runBtn.addEventListener("click", onRun);
+        demoBtn.addEventListener("click", loadDemo);
+
+        clearOutBtn.addEventListener("click", ()=>{
+          setOutput("Output will appear here…");
+          setMeta({latencyMs:null, usedModel:"—", fallback:"—"});
+          showToast("good", "Cleared", "Output cleared.");
+        });
+
+        document.addEventListener("keydown", (e)=>{
+          const isMac = navigator.platform.toUpperCase().includes("MAC");
+          const mod = isMac ? e.metaKey : e.ctrlKey;
+          if(mod && e.key === "Enter"){
+            e.preventDefault();
+            if(!runBtn.disabled) onRun();
+          }
+        });
+      }
+
+      function init(){
+        syncPair(tempRange, tempNum, 0, 1.5, 0.01);
+        syncPair(topPRange, topPNum, 0, 1.0, 0.01);
+        syncPair(topKRange, topKNum, 1, 100, 1);
+        syncPair(maxTokRange, maxTokNum, 50, 2048, 1);
+
+        buildPresetUI();
+        state.userEditedInstructions = false;
+        applyPreset("innovative", false);
+
+        setKeyStatus("warn", "Not validated");
+        disableRun(true, "Validate your key first.");
+        setMeta({latencyMs:null, usedModel:"—", fallback:"—"});
+        setSelectedModelUI();
+        wireEvents();
+      }
+
+      window.addEventListener("error", (event)=>{
+        try{
+          const msg = (event && event.message) ? String(event.message) : "Unknown error";
+          appendOutput("\n\n[UI Safety] A script error occurred but the app is still usable.\nSimplified: " + msg + "\n");
+          showToast("bad", "Script error", "UI stayed alive. Reload if needed.");
+        }catch(e){}
+      });
+
+      window.addEventListener("unhandledrejection", (event)=>{
+        try{
+          const msg = (event && event.reason) ? String(event.reason && event.reason.message ? event.reason.message : event.reason) : "Unknown rejection";
+          appendOutput("\n\n[UI Safety] A request failed unexpectedly but the app is still usable.\nSimplified: " + msg + "\n");
+          showToast("bad", "Async error", "UI stayed alive. Try again or reload.");
+        }catch(e){}
+      });
+
+      init();
+    })();
+  </script>
+</body>
+</html>
